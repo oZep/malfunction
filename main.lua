@@ -4,7 +4,10 @@ local LoveDialogue = require "LoveDialogue"
 local myDialogue
 local bossIntro
 local bullets = require("bullets")
-
+local countdown = 300
+local count = 0
+local isMovingTowardPlayer = false
+local direction_x, direction_y 
 
 Sheep = {}
 Sheep.__index = Sheep
@@ -288,40 +291,60 @@ function love.update(dt)
         py = math.max(24, math.min(py, screenHeight - 24))
         player.collider:setPosition(px, py)
     
-        -- DVD logo style movement with angle correction for boss
+        -- Boss movement and shooting behavior
         local bx, by = boss.collider:getPosition()
         local bdx, bdy = boss.collider:getLinearVelocity()
     
-        local bounced = false
+        -- If the boss is supposed to move toward the player, calculate the direction once
+        if isMovingTowardPlayer then
+            -- Calculate direction once
+            if direction_x == nil or direction_y == nil then
+                local player_x, player_y = player.collider:getPosition()
+                direction_x = player_x - bx
+                direction_y = player_y - by
+                local length = math.sqrt(direction_x^2 + direction_y^2)
     
-        if bx <= 64 or bx >= screenWidth - 64 then
-            bdx = -bdx -- Reflect horizontally
-            bounced = true
-        end
-        if by <= 64 or by >= screenHeight - 64 then
-            bdy = -bdy -- Reflect vertically
-            bounced = true
+                -- Normalize the direction to get a unit vector
+                direction_x = direction_x / length
+                direction_y = direction_y / length
+            end
+    
+            -- Move the boss toward the direction (no tracking, just moving in a straight line)
+            local moveSpeed = boss.speed  -- Use the boss's speed for movement
+            bdx = direction_x * moveSpeed
+            bdy = direction_y * moveSpeed
         end
     
-        -- Prevent straight horizontal or vertical movement
-        if bounced then
-            local speed = math.sqrt(bdx^2 + bdy^2)
-            local angle = math.atan2(bdy, bdx) + love.math.random(-0.2, 0.2) -- Slight angle change
-            bdx = math.cos(angle) * boss.speed * 10
-            bdy = math.sin(angle) * boss.speed * 10
+        -- Countdown logic to move the boss back to the center
+        if countdown > 0 then
+            countdown = countdown - 1
+        else
+            -- After countdown reaches zero, the boss returns to the center
+            local centerX, centerY = screenWidth / 2, screenHeight / 2
+            local angleToCenter = math.atan2(centerY - by, centerX - bx)
+            local moveSpeed = boss.speed  -- Speed at which the boss moves toward the center
+            bdx = math.cos(angleToCenter) * moveSpeed
+            bdy = math.sin(angleToCenter) * moveSpeed
+    
+            -- Once the boss is at the center, reset the countdown and allow it to move toward the player again
+            if math.abs(bx - centerX) < 5 and math.abs(by - centerY) < 5 then
+                countdown = 75  -- Reset countdown timer
+                isMovingTowardPlayer = true  -- Start moving toward the player
+                direction_x, direction_y = nil, nil  -- Reset direction so the boss recalculates the new direction
+
+            end
         end
     
+        -- Boss position and velocity updates
         boss.collider:setLinearVelocity(bdx, bdy)
         boss.collider:setPosition(math.max(64, math.min(bx, screenWidth - 64)), math.max(64, math.min(by, screenHeight - 64)))
     
-        -- Update boss bullet positions
+        -- Update boss bullet positions (if any)
         timer = timer + 1
         if timer % 200 == 0 then
-            bullets:changeType()
             boss.speed = boss.speed + 100
         end
     end
-
 
     -- update player collider
     player.collider:setLinearVelocity(vx, vy)
