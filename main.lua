@@ -3,6 +3,7 @@ local LoveDialogue = require "LoveDialogue"
 
 local myDialogue
 local bossIntro
+local bullets = require("bullets")
 
 
 Sheep = {}
@@ -59,6 +60,7 @@ function love.load()
     scene2 = true
     talk = true
     tele = true
+    timer = 0
 
     gameMap = sti("Assets/maps/testmap.lua")
 
@@ -72,6 +74,7 @@ function love.load()
     world:addCollisionClass("Player")
     world:addCollisionClass("NPC")
     world:addCollisionClass("Sheep")
+    world:addCollisionClass("Boss")
 
     -- for scaling pixel art
     love.graphics.setDefaultFilter('nearest', 'nearest')
@@ -83,7 +86,7 @@ function love.load()
     player.collider:setCollisionClass("Player")
     player.x = 1410
     player.y = 2230 -- center of scene
-    player.speed = 600
+    player.speed = 400
     player.spriteSheet = love.graphics.newImage("Assets/sprites/Char_002.png")
     player.grid = anim8.newGrid(48, 48, player.spriteSheet:getWidth(), player.spriteSheet:getHeight())
     player.animations = {}
@@ -95,6 +98,7 @@ function love.load()
     player.sheepCollected = 0
     -- missions
     player.captureSheep = false
+    player.alive = true
 
     --- npc 1450.1752929688 1093
     npc = {}
@@ -148,10 +152,27 @@ function love.load()
     boss = {}
     boss.x = 200
     boss.y = 200
+    boss.speed = 1200
     boss.collider = world:newBSGRectangleCollider(200, 200, 100, 100, 90)
+    boss.collider:setCollisionClass("Boss")
     boss.speed = 1200
     boss.spriteSheet = love.graphics.newImage("Assets/sprites/boss.png")
     boss.draw = function()
+        love.graphics.draw(
+            boss.spriteSheet, 
+            boss.collider:getX(), 
+            boss.collider:getY(), 
+            boss.collider:getAngle(), 
+            1, 1,  -- Scale
+            96, 96 -- Offset (half of 192x192 sprite size for proper rotation)
+        )
+    end
+
+    -- bullets:load()
+
+
+
+    function boss:draw()
         love.graphics.draw(
             boss.spriteSheet, 
             boss.collider:getX(), 
@@ -198,7 +219,6 @@ function love.update(dt)
     if player.sheepCollected >= 60 and talk then
         bossIntro.isActive = true
         player.captureSheep = false
-        player.sheepCollected = 0
         talk = false
     end
 
@@ -216,6 +236,12 @@ function love.update(dt)
             sheep_collider:destroy()
             player.sheepCollected = player.sheepCollected + 3
         end
+    end
+
+
+    if player.collider:enter("Bullet") or player.collider:enter("Boss") then
+        local collision_data = player.collider:getEnterCollisionData("Bullet")
+        player.alive = false
     end
 
     -- move player
@@ -254,17 +280,46 @@ function love.update(dt)
 
     -- Clamp player collider position to stay within screen bounds
     if scene2 then
+        player.speed = 800
         local screenWidth = love.graphics.getWidth()
         local screenHeight = love.graphics.getHeight()
         local px, py = player.collider:getPosition()
         px = math.max(24, math.min(px, screenWidth - 24))
         py = math.max(24, math.min(py, screenHeight - 24))
         player.collider:setPosition(px, py)
-
+    
+        -- DVD logo style movement with angle correction for boss
         local bx, by = boss.collider:getPosition()
-        bx = math.max(64, math.min(bx, screenWidth - 64))
-        by = math.max(64, math.min(by, screenHeight - 64))
-        boss.collider:setPosition(bx, by)
+        local bdx, bdy = boss.collider:getLinearVelocity()
+    
+        local bounced = false
+    
+        if bx <= 64 or bx >= screenWidth - 64 then
+            bdx = -bdx -- Reflect horizontally
+            bounced = true
+        end
+        if by <= 64 or by >= screenHeight - 64 then
+            bdy = -bdy -- Reflect vertically
+            bounced = true
+        end
+    
+        -- Prevent straight horizontal or vertical movement
+        if bounced then
+            local speed = math.sqrt(bdx^2 + bdy^2)
+            local angle = math.atan2(bdy, bdx) + love.math.random(-0.2, 0.2) -- Slight angle change
+            bdx = math.cos(angle) * boss.speed * 10
+            bdy = math.sin(angle) * boss.speed * 10
+        end
+    
+        boss.collider:setLinearVelocity(bdx, bdy)
+        boss.collider:setPosition(math.max(64, math.min(bx, screenWidth - 64)), math.max(64, math.min(by, screenHeight - 64)))
+    
+        -- Update boss bullet positions
+        timer = timer + 1
+        if timer % 200 == 0 then
+            bullets:changeType()
+            boss.speed = boss.speed + 100
+        end
     end
 
 
@@ -316,18 +371,16 @@ function love.draw()
             player.collider:setPosition(400, 200)
             tele = false
         end
+        -- bullets:draw()
         boss.draw()
-        -- draw world (see colliders)
+        --  draw world (see colliders)
         world:draw()
         
     end
 
-    print(scene2, bossIntro.isActive)
-
     -- update collider position
     player.x = player.collider:getX()
     player.y = player.collider:getY()
-
 
     boss.x = boss.collider:getX()
     boss.y = boss.collider:getY()
