@@ -30,4 +30,9 @@ callbacks["move_square"] = function()
     return true
 end
 
+callbacks["yes"] = function()
+    return true
+end
+
+
 return callbacks

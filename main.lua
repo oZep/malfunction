@@ -2,32 +2,50 @@ local LoveDialogue = require "LoveDialogue"
 --local DebugConsole = require "Debuging.DebugConsole"
 
 local myDialogue
+local bossIntro
 
-function startTask()
-    myDialogue = LoveDialogue.play("dialogue.ld", {
+
+Sheep = {}
+Sheep.__index = Sheep
+
+function Sheep:new(x, y)
+    local self = setmetatable({}, Sheep)
+    self.x = x
+    self.y = y
+    self.speed = 100
+    self.spriteSheet = love.graphics.newImage("Assets/sprites/sheep.png")
+    self.grid = anim8.newGrid(128, 128, self.spriteSheet:getWidth(), self.spriteSheet:getHeight())
+    self.animations = {}
+    self.animations["idle"] = anim8.newAnimation(self.grid('1-6', 1), 0.2)
+    self.anim = self.animations["idle"]
+    self.collider = world:newBSGRectangleCollider(x, y, 32, 32, 14)
+    self.collider:setFixedRotation(true)
+    self.collider:setCollisionClass("Sheep")
+    return self
+end
+
+function Sheep:update(dt)
+    self.anim:update(dt)
+    self.x = self.collider:getX()
+    self.y = self.collider:getY()
+end
+
+function Sheep:draw()
+    self.anim:draw(self.spriteSheet, self.x - 64, self.y - 64)
+end
+
+myDialogue = LoveDialogue.play("dialogue.ld", {
+        boxHeight = 150,
+        portraitEnabled = true
+})
+myDialogue.isActive = false
+
+
+bossIntro = LoveDialogue.play("dialogue2.ld", {
         boxHeight = 150,
         portraitEnabled = true
     })
-end
-
-local dialogueCooldown = false
-
-function beginContact(colliderA, colliderB, coll)
-    if colliderA and colliderB then
-        local aType = colliderA.collision_class
-        local bType = colliderB.collision_class
-
-        if (aType == "Player" and bType == "NPC") or (aType == "NPC" and bType == "Player") then
-            if not dialogueCooldown then
-                print("Player collided with NPC!")
-                startTask()
-                dialogueCooldown = true
-                -- Set a cooldown timer (e.g., 2 seconds)
-                love.timer.after(2, function() dialogueCooldown = false end)
-            end
-        end
-    end
-end
+bossIntro.isActive = false
 
 
 function love.load()
@@ -37,12 +55,21 @@ function love.load()
     camera = require "camera" -- a camera library for love2d
     cam = camera()
 
+    scene1 = true
+    scene2 = false
+    talk = true
+    tele = true
+
     gameMap = sti("Assets/maps/testmap.lua")
+
+    -- Create a new Canvas to draw to
+    canvas = love.graphics.newCanvas(1410, 2230)
 
     -- Create a world with standard gravity
     world = wf.newWorld(0, 0)
     world:addCollisionClass("Player")
     world:addCollisionClass("NPC")
+    world:addCollisionClass("Sheep")
 
     -- for scaling pixel art
     love.graphics.setDefaultFilter('nearest', 'nearest')
@@ -54,7 +81,7 @@ function love.load()
     player.collider:setCollisionClass("Player")
     player.x = 1410
     player.y = 2230 -- center of scene
-    player.speed = 200
+    player.speed = 600
     player.spriteSheet = love.graphics.newImage("Assets/sprites/Char_002.png")
     player.grid = anim8.newGrid(48, 48, player.spriteSheet:getWidth(), player.spriteSheet:getHeight())
     player.animations = {}
@@ -63,6 +90,9 @@ function love.load()
     player.animations["right"] = anim8.newAnimation(player.grid('1-4', 3), 0.2)
     player.animations["up"] = anim8.newAnimation(player.grid('1-4', 4), 0.2)
     player.anim = player.animations["down"]
+    player.sheepCollected = 0
+    -- missions
+    player.captureSheep = false
 
     --- npc 1450.1752929688 1093
     npc = {}
@@ -76,17 +106,54 @@ function love.load()
     npc.grid = anim8.newGrid(192, 192, npc.spriteSheet:getWidth(), npc.spriteSheet:getHeight())
     npc.animations = {}
     npc.animations["idle"] = anim8.newAnimation(npc.grid('1-6', 1), 0.2)
+    
+    
+    SheepList = {}  -- Store all sheep objects properly
+    local startX, startY = 1620, 1323 -- Change this to adjust spawn location
+    local spread = 300
+    for i = 1, 25 do
+        local offsetX = math.random(-spread, spread) -- Randomize x position
+        local offsetY = math.random(-spread, spread) -- Randomize y position
+        local sheep = Sheep:new(startX + offsetX, startY + offsetY)
+        if sheep then
+            table.insert(SheepList, sheep)
+        end
+    end
 
+    local sandX, sandY = 1350, 1780
+    local spread = 200
+    for i = 1, 10 do
+        local offsetX = math.random(-spread, spread) -- Randomize x position
+        local offsetY = math.random(-spread, spread) -- Randomize y position
+        local sheep = Sheep:new(sandX + offsetX, sandY + offsetY)
+        if sheep then
+            table.insert(SheepList, sheep)
+        end
+    end
+
+    local cliftX, cliftY = 2165, 2015
+    local spread = 250
+    for i = 1, 20 do
+        local offsetX = math.random(-spread, spread) -- Randomize x position
+        local offsetY = math.random(-spread, spread) -- Randomize y position
+        local sheep = Sheep:new(cliftX + offsetX, cliftY + offsetY)
+        if sheep then
+            table.insert(SheepList, sheep)
+        end
+    end
 
     -- boss character
     boss = {}
-    boss.x = 400 - 64
-    boss.y = 200 -- center of scene
+    boss.x = 200 - 192
+    boss.y = 200 + 192
     boss.speed = 1200
-    boss.spriteSheet = love.graphics.newImage("Assets/sprites/97.png")
-    boss.grid = anim8.newGrid(128, 128, boss.spriteSheet:getWidth(), boss.spriteSheet:getHeight())
+    boss.spriteSheet = love.graphics.newImage("Assets/sprites/boss.png")
+    boss.grid = anim8.newGrid(192, 192, boss.spriteSheet:getWidth(), boss.spriteSheet:getHeight())
     boss.animations = {}
-    boss.anim = anim8.newAnimation(boss.grid('1-1', 1),0.1)
+    boss.anim = anim8.newAnimation(boss.grid('1-1', 1),1)
+    boss.collider = world:newBSGRectangleCollider(200, 200, 100, 100, 90)
+
+    background = love.graphics.newImage("Assets/2.png")
 
     walls = {}
     if gameMap.layers["Walls"] then
@@ -96,11 +163,6 @@ function love.load()
             table.insert(walls, wall)
         end
     end
-
-    -- myDialogue = LoveDialogue.play("dialogue.ld", { --- essentially just play different dialogues during different phases of the game aka when character collison
-    --     boxHeight = 150,
-    --     portraitEnabled = true
-    -- })
     
 end
 
@@ -111,14 +173,42 @@ function love.update(dt)
     local vx = 0
     local vy = 0
 
-    if myDialogue then
+    if myDialogue.isActive then
         myDialogue:update(dt)
         return
     end
 
+    if bossIntro.isActive then
+        bossIntro:update(dt)
+        return
+    end
+
     if player.collider:enter("NPC") then
-        print("Player collided with NPC!")
-        startTask()
+        myDialogue.isActive = true
+        player.captureSheep = true
+    end
+
+    if player.sheepCollected >= 60 and talk then
+        bossIntro.isActive = true
+        player.captureSheep = false
+        player.sheepCollected = 0
+        talk = false
+    end
+
+    if player.captureSheep then
+        if player.collider:enter("Sheep") then
+            local collision_data = player.collider:getEnterCollisionData("Sheep")
+            local sheep_collider = collision_data.collider
+            -- search through sheepList to find the sheep object and remove it
+            for i, sheep in ipairs(SheepList) do
+                if sheep.collider == sheep_collider then
+                    table.remove(SheepList, i)
+                    break
+                end
+            end
+            sheep_collider:destroy()
+            player.sheepCollected = player.sheepCollected + 3
+        end
     end
 
     -- move player
@@ -150,53 +240,104 @@ function love.update(dt)
     player.anim:update(dt)
     boss.anim:update(dt)
     npc.animations["idle"]:update(dt)
+    -- update sheep_collider
+    for _, sheep in ipairs(SheepList) do
+        sheep:update(dt)
+    end
     world:update(dt)
 
     -- Clamp player collider position to stay within screen bounds
-    -- local screenWidth = love.graphics.getWidth()
-    -- local screenHeight = love.graphics.getHeight()
-    -- local px, py = player.collider:getPosition()
-    -- px = math.max(24, math.min(px, screenWidth - 24))
-    -- py = math.max(24, math.min(py, screenHeight - 24))
-    -- player.collider:setPosition(px, py)
+    if scene2 then
+        local screenWidth = love.graphics.getWidth()
+        local screenHeight = love.graphics.getHeight()
+        local px, py = player.collider:getPosition()
+        px = math.max(24, math.min(px, screenWidth - 24))
+        py = math.max(24, math.min(py, screenHeight - 24))
+        player.collider:setPosition(px, py)
+
+        local bx, by = boss.collider:getPosition()
+        bx = math.max(64, math.min(bx, screenWidth - 64))
+        by = math.max(64, math.min(by, screenHeight - 64))
+        boss.collider:setPosition(bx, by)
+    end
 
 
     -- update player collider
     player.collider:setLinearVelocity(vx, vy)
 
     -- camera movement
-    cam:lookAt(player.x, player.y)
+    if scene1 then
+        cam:lookAt(player.x, player.y)
+    end
 
 end
 
 function love.draw()
     
     cam:attach()
-        -- draw background
-        gameMap:drawLayer(gameMap.layers["Tile Layer 4"])
-        gameMap:drawLayer(gameMap.layers["Tile Layer 1"])
-        gameMap:drawLayer(gameMap.layers["Tile Layer 2"])
-        gameMap:drawLayer(gameMap.layers["Tile Layer 3"])
-        -- draw player animation
-        player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
-        npc.animations["idle"]:draw(npc.spriteSheet, npc.x - 48, npc.y - 48, 0, 0.7)
-        -- boss.anim:draw(boss.spriteSheet, boss.x, boss.y)
+        if scene1 then
+            -- draw background
+            gameMap:drawLayer(gameMap.layers["Tile Layer 4"])
+            gameMap:drawLayer(gameMap.layers["Tile Layer 1"])
+            gameMap:drawLayer(gameMap.layers["Tile Layer 2"])
+            gameMap:drawLayer(gameMap.layers["Tile Layer 3"])
+            -- draw player animation
+            player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
+            npc.animations["idle"]:draw(npc.spriteSheet, npc.x - 48, npc.y - 48, 0, 0.7)
+            -- draw table of sheep
+            for _, sheep in ipairs(SheepList) do
+                sheep:draw()
+            end
+
+            if player.sheepCollected >= 50 then
+                -- add static shader
+                if player.sheepCollected >= 70 then
+                    love.graphics.clear(0, 0, 0, 1)
+                    scene2 = true
+                    scene1 = false
+                end
+            end
+        end
         -- draw world (see colliders)
         world:draw()
     cam:detach()
 
-
+    if scene2 then
+        -- draw background
+        love.graphics.draw(background, 0, 0)
+        player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
+        -- teleport player to new scene
+        if tele then
+            player.collider:setPosition(400, 200)
+            tele = false
+        end
+        boss.anim:draw(boss.spriteSheet, boss.x, boss.y)
+        -- draw world (see colliders)
+        world:draw()
+    end
 
     -- update collider position
     player.x = player.collider:getX()
     player.y = player.collider:getY()
+
+
+    boss.x = boss.collider:getX()
+    boss.y = boss.collider:getY()
+    
     if myDialogue then
         myDialogue:draw()
     end
+
+    if bossIntro.isActive then
+        bossIntro:draw()
+    end 
 end
 
 function love.keypressed(key)
     if myDialogue then
         myDialogue:keypressed(key) -- Advance dialogue
+    end
+    if bossIntro then
+        bossIntro:keypressed(key) -- Advance dialogue
     end
 end

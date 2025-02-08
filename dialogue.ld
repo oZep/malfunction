@@ -1,20 +1,31 @@
 @portrait Miisan Assets/girl.png
 @portrait Eiisan Assets/girl2.png
-@portrait Wiisan Assets/girl3.png
+@portrait Chad Assets/Soilder.png
 @Character Assets/characters/feni.char
+@Character Assets/characters/npc.char
 
 [start]
-Miisan: {bold:4}{wave:1}Hello!{/wave}{/bold} I'm {italic:left}Miisan{/italic}  , and  {italic:right}welcome{/italic} to our dialogue démo!
-Eiisan: And I'm Eiisan! We're here to show you the branching dialogue system.
-Wiisan: Don't forget about me! I'm Wiisan, and I'll help demonstrate the portraits and text effects.
-Feni: Hey, I'm Feni! I'll be here to show you character expressions.
+Hob: Name's Hob.  
+Hob: I'm a blacksmith.  
+Hob(Determined): You're the new hero in town, right? I might have a job for you.  
+Hob(Sad): I lost my sheep.  
+Hob(Determined): If you collect all my sheep, I will build you a sword worthy of a hero such as yourself.  
 
-Miisan: Who would you like to talk to first?
--> Chat with Eiisan [target:eiisan_branch]
--> Talk to Wiisan [target:wiisan_branch]
--> Ask Miisan about text effects [target:miisan_effects]
--> Talk to Feni about its feelings [target:feni_feelings]
+Hob: Can you help me collect my sheep?
+Hob: ...
+-> Yes [target:end_demo]
+-> No [target:no]  
+-> What does a blacksmith need sheep for? [target:questioned]  
 
+[questioned]  
+Hob(Happy): {shake:1}Nothing.{/shake} 
+Hob: ...
+-> Leave. [target:start]
+
+[no]  
+Hob(Happy): {shake:1}Wrong Answer!!!!{/shake} 
+Hob: ...
+-> Leave. [target:start]
 
 [feni_feelings]
 Feni(Happy): Hi! I'm glad you want to know more about me.
@@ -113,6 +124,5 @@ Miisan: We're all back together! What would you like to do next?
 -> End the demo [target:end_demo]
 
 [end_demo]
-Miisan: Thanks for trying out our dialogue system!
-Eiisan: {wave:1}Come back soon!{/wave}
-Wiisan: {color:98FB98}Bye bye!{/color} (end)
+Hob(Surprised): Mh. 
+Chad: {color:ffffff}Bye bye!{/color} (end)
