@@ -291,11 +291,9 @@ function love.update(dt)
         py = math.max(24, math.min(py, screenHeight - 24))
         player.collider:setPosition(px, py)
     
-        -- Boss movement and shooting behavior
+        -- Boss movement
         local bx, by = boss.collider:getPosition()
         local bdx, bdy = boss.collider:getLinearVelocity()
-    
-        -- If the boss is supposed to move toward the player, calculate the direction once
         if isMovingTowardPlayer then
             -- Calculate direction once
             if direction_x == nil or direction_y == nil then
@@ -309,28 +307,24 @@ function love.update(dt)
                 direction_y = direction_y / length
             end
     
-            -- Move the boss toward the direction (no tracking, just moving in a straight line)
             local moveSpeed = boss.speed  -- Use the boss's speed for movement
             bdx = direction_x * moveSpeed
             bdy = direction_y * moveSpeed
         end
     
-        -- Countdown logic to move the boss back to the center
         if countdown > 0 then
             countdown = countdown - 1
         else
-            -- After countdown reaches zero, the boss returns to the center
             local centerX, centerY = screenWidth / 2, screenHeight / 2
             local angleToCenter = math.atan2(centerY - by, centerX - bx)
-            local moveSpeed = boss.speed  -- Speed at which the boss moves toward the center
+            local moveSpeed = boss.speed 
             bdx = math.cos(angleToCenter) * moveSpeed
             bdy = math.sin(angleToCenter) * moveSpeed
     
-            -- Once the boss is at the center, reset the countdown and allow it to move toward the player again
             if math.abs(bx - centerX) < 5 and math.abs(by - centerY) < 5 then
                 countdown = 75  -- Reset countdown timer
-                isMovingTowardPlayer = true  -- Start moving toward the player
-                direction_x, direction_y = nil, nil  -- Reset direction so the boss recalculates the new direction
+                isMovingTowardPlayer = true 
+                direction_x, direction_y = nil, nil
 
             end
         end
