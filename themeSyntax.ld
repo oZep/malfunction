@@ -7,5 +7,5 @@ name_font_size: 26
 box_height: 160
 padding: 20
 typing_speed: 0.03
-fade_in: 0.2
-fade_out: 0.2
+fade_in: 0
+fade_out: 0

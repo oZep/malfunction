@@ -55,12 +55,14 @@ function love.load()
     camera = require "camera" -- a camera library for love2d
     cam = camera()
 
-    scene1 = true
-    scene2 = false
+    scene1 = false
+    scene2 = true
     talk = true
     tele = true
 
     gameMap = sti("Assets/maps/testmap.lua")
+
+    secondRound = sti("Assets/maps/secondRound.lua")
 
     -- Create a new Canvas to draw to
     canvas = love.graphics.newCanvas(1410, 2230)
@@ -144,16 +146,21 @@ function love.load()
 
     -- boss character
     boss = {}
-    boss.x = 200 - 192
-    boss.y = 200 + 192
+    boss.x = 200
+    boss.y = 200
+    boss.collider = world:newBSGRectangleCollider(200, 200, 100, 100, 90)
     boss.speed = 1200
     boss.spriteSheet = love.graphics.newImage("Assets/sprites/boss.png")
-    boss.grid = anim8.newGrid(192, 192, boss.spriteSheet:getWidth(), boss.spriteSheet:getHeight())
-    boss.animations = {}
-    boss.anim = anim8.newAnimation(boss.grid('1-1', 1),1)
-    boss.collider = world:newBSGRectangleCollider(200, 200, 100, 100, 90)
-
-    background = love.graphics.newImage("Assets/2.png")
+    boss.draw = function()
+        love.graphics.draw(
+            boss.spriteSheet, 
+            boss.collider:getX(), 
+            boss.collider:getY(), 
+            boss.collider:getAngle(), 
+            1, 1,  -- Scale
+            96, 96 -- Offset (half of 192x192 sprite size for proper rotation)
+        )
+    end
 
     walls = {}
     if gameMap.layers["Walls"] then
@@ -238,7 +245,6 @@ function love.update(dt)
 
     -- update player animation
     player.anim:update(dt)
-    boss.anim:update(dt)
     npc.animations["idle"]:update(dt)
     -- update sheep_collider
     for _, sheep in ipairs(SheepList) do
@@ -270,12 +276,15 @@ function love.update(dt)
         cam:lookAt(player.x, player.y)
     end
 
+    if scene2 then
+        cam:lookAt(player.x, player.y)
+    end
+
 end
 
 function love.draw()
-    
-    cam:attach()
-        if scene1 then
+    if scene1 then
+        cam:attach()
             -- draw background
             gameMap:drawLayer(gameMap.layers["Tile Layer 4"])
             gameMap:drawLayer(gameMap.layers["Tile Layer 1"])
@@ -291,30 +300,29 @@ function love.draw()
 
             if player.sheepCollected >= 50 then
                 -- add static shader
-                if player.sheepCollected >= 70 then
-                    love.graphics.clear(0, 0, 0, 1)
+                if player.sheepCollected >= 60 then
                     scene2 = true
                     scene1 = false
                 end
             end
-        end
-        -- draw world (see colliders)
-        world:draw()
-    cam:detach()
-
+        cam:detach()
+    end
     if scene2 then
-        -- draw background
-        love.graphics.draw(background, 0, 0)
+        -- clear screen
+        love.graphics.clear(0, 0, 0, 1)
         player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
         -- teleport player to new scene
         if tele then
             player.collider:setPosition(400, 200)
             tele = false
         end
-        boss.anim:draw(boss.spriteSheet, boss.x, boss.y)
+        boss.draw()
         -- draw world (see colliders)
         world:draw()
+        
     end
+
+    print(scene2, bossIntro.isActive)
 
     -- update collider position
     player.x = player.collider:getX()
@@ -324,7 +332,7 @@ function love.draw()
     boss.x = boss.collider:getX()
     boss.y = boss.collider:getY()
     
-    if myDialogue then
+    if myDialogue.isActive then
         myDialogue:draw()
     end
 
