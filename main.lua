@@ -3,6 +3,33 @@ local LoveDialogue = require "LoveDialogue"
 
 local myDialogue
 
+function startTask()
+    myDialogue = LoveDialogue.play("dialogue.ld", {
+        boxHeight = 150,
+        portraitEnabled = true
+    })
+end
+
+local dialogueCooldown = false
+
+function beginContact(colliderA, colliderB, coll)
+    if colliderA and colliderB then
+        local aType = colliderA.collision_class
+        local bType = colliderB.collision_class
+
+        if (aType == "Player" and bType == "NPC") or (aType == "NPC" and bType == "Player") then
+            if not dialogueCooldown then
+                print("Player collided with NPC!")
+                startTask()
+                dialogueCooldown = true
+                -- Set a cooldown timer (e.g., 2 seconds)
+                love.timer.after(2, function() dialogueCooldown = false end)
+            end
+        end
+    end
+end
+
+
 function love.load()
     anim8 = require "Animation/anim8"
     wf = require 'windfield' -- a physics library for love2d
@@ -14,16 +41,19 @@ function love.load()
 
     -- Create a world with standard gravity
     world = wf.newWorld(0, 0)
+    world:addCollisionClass("Player")
+    world:addCollisionClass("NPC")
 
     -- for scaling pixel art
     love.graphics.setDefaultFilter('nearest', 'nearest')
 
     -- player character
     player = {}
-    player.collider = world:newBSGRectangleCollider(720, 1596, 40, 40, 14)
+    player.collider = world:newBSGRectangleCollider(1410, 2230, 40, 40, 14)
     player.collider:setFixedRotation(true)
-    player.x = 740
-    player.y = 1596 -- center of scene
+    player.collider:setCollisionClass("Player")
+    player.x = 1410
+    player.y = 2230 -- center of scene
     player.speed = 200
     player.spriteSheet = love.graphics.newImage("Assets/sprites/Char_002.png")
     player.grid = anim8.newGrid(48, 48, player.spriteSheet:getWidth(), player.spriteSheet:getHeight())
@@ -34,6 +64,20 @@ function love.load()
     player.animations["up"] = anim8.newAnimation(player.grid('1-4', 4), 0.2)
     player.anim = player.animations["down"]
 
+    --- npc 1450.1752929688 1093
+    npc = {}
+    npc.collider = world:newBSGRectangleCollider(1450, 1093, 40, 40, 14)
+    npc.collider:setFixedRotation(true)
+    npc.collider:setType("kinematic") -- collision detection but no physics-based movement
+    npc.collider:setCollisionClass("NPC")
+    npc.x = 1450
+    npc.y = 1093 -- center of scene
+    npc.spriteSheet = love.graphics.newImage("Assets/sprites/Pawn_Yellow.png")
+    npc.grid = anim8.newGrid(192, 192, npc.spriteSheet:getWidth(), npc.spriteSheet:getHeight())
+    npc.animations = {}
+    npc.animations["idle"] = anim8.newAnimation(npc.grid('1-6', 1), 0.2)
+
+
     -- boss character
     boss = {}
     boss.x = 400 - 64
@@ -43,9 +87,15 @@ function love.load()
     boss.grid = anim8.newGrid(128, 128, boss.spriteSheet:getWidth(), boss.spriteSheet:getHeight())
     boss.animations = {}
     boss.anim = anim8.newAnimation(boss.grid('1-1', 1),0.1)
-    
-    -- background
-    background = love.graphics.newImage("Assets/maps/TinySwords/Terrain/Water/Water.png")
+
+    walls = {}
+    if gameMap.layers["Walls"] then
+        for i, obj in pairs(gameMap.layers["Walls"].objects) do
+            local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
+            wall:setType("static")
+            table.insert(walls, wall)
+        end
+    end
 
     -- myDialogue = LoveDialogue.play("dialogue.ld", { --- essentially just play different dialogues during different phases of the game aka when character collison
     --     boxHeight = 150,
@@ -60,6 +110,16 @@ function love.update(dt)
 
     local vx = 0
     local vy = 0
+
+    if myDialogue then
+        myDialogue:update(dt)
+        return
+    end
+
+    if player.collider:enter("NPC") then
+        print("Player collided with NPC!")
+        startTask()
+    end
 
     -- move player
     if love.keyboard.isDown("right") or love.keyboard.isDown("d") then
@@ -89,6 +149,7 @@ function love.update(dt)
     -- update player animation
     player.anim:update(dt)
     boss.anim:update(dt)
+    npc.animations["idle"]:update(dt)
     world:update(dt)
 
     -- Clamp player collider position to stay within screen bounds
@@ -106,9 +167,6 @@ function love.update(dt)
     -- camera movement
     cam:lookAt(player.x, player.y)
 
-    -- if myDialogue then
-    --     myDialogue:update(dt)
-    -- end
 end
 
 function love.draw()
@@ -121,6 +179,7 @@ function love.draw()
         gameMap:drawLayer(gameMap.layers["Tile Layer 3"])
         -- draw player animation
         player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
+        npc.animations["idle"]:draw(npc.spriteSheet, npc.x - 48, npc.y - 48, 0, 0.7)
         -- boss.anim:draw(boss.spriteSheet, boss.x, boss.y)
         -- draw world (see colliders)
         world:draw()
@@ -131,7 +190,6 @@ function love.draw()
     -- update collider position
     player.x = player.collider:getX()
     player.y = player.collider:getY()
-
     if myDialogue then
         myDialogue:draw()
     end
@@ -139,6 +197,6 @@ end
 
 function love.keypressed(key)
     if myDialogue then
-        myDialogue:keypressed(key)
+        myDialogue:keypressed(key) -- Advance dialogue
     end
 end
