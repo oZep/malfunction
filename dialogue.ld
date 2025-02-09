@@ -8,7 +8,7 @@
 Hob: Name's Hob.  
 Hob: I'm a blacksmith.  
 Hob(Determined): You're the new hero in town, right? I might have a job for you.  
-Hob(Sad): I lost my sheep.  
+Hob(Sad): I lost my sheep.  40 of them.
 Hob(Determined): If you collect all my sheep, I will build you a sword worthy of a hero such as yourself.  
 
 Hob: Can you help me collect my sheep?
@@ -125,4 +125,4 @@ Miisan: We're all back together! What would you like to do next?
 
 [end_demo]
 Hob(Surprised): Mh. 
-Chad: {color:ffffff}Bye bye!{/color} (end)
+Chad: {color:ffffff}ah.. okay!{/color} (end)

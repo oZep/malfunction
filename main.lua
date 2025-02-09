@@ -3,11 +3,12 @@ local LoveDialogue = require "LoveDialogue"
 
 local myDialogue
 local bossIntro
-local bullets = require("bullets")
 local countdown = 300
-local count = 0
+local countSheep = 0
 local isMovingTowardPlayer = false
 local direction_x, direction_y 
+local spread = 300
+local invisframe = 0
 
 Sheep = {}
 Sheep.__index = Sheep
@@ -59,8 +60,8 @@ function love.load()
     camera = require "camera" -- a camera library for love2d
     cam = camera()
 
-    scene1 = false
-    scene2 = true
+    scene1 = true
+    scene2 = false
     talk = true
     tele = true
     timer = 0
@@ -102,6 +103,8 @@ function love.load()
     -- missions
     player.captureSheep = false
     player.alive = true
+    player.heath = {1, 2, 3}
+    player.heathSprite = love.graphics.newImage("Assets/sprites/heart.png")
 
     --- npc 1450.1752929688 1093
     npc = {}
@@ -217,11 +220,26 @@ function love.update(dt)
     if player.collider:enter("NPC") then
         myDialogue.isActive = true
         player.captureSheep = true
+        npc.collider:destroy()
     end
 
-    if player.sheepCollected >= 60 and talk then
+
+    shouldBeDead = #player.heath == 0
+    player.alive = not shouldBeDead
+
+    print(player.alive)
+
+    if player.collider:enter("Boss") and invisframe <= 0 then
+        invisframe = 100
+        if player.alive then
+            table.remove(player.heath)
+        end
+    end
+
+    invisframe = invisframe - 1
+
+    if player.sheepCollected >= 30 and talk then
         bossIntro.isActive = true
-        player.captureSheep = false
         talk = false
     end
 
@@ -237,14 +255,8 @@ function love.update(dt)
                 end
             end
             sheep_collider:destroy()
-            player.sheepCollected = player.sheepCollected + 3
+            player.sheepCollected = player.sheepCollected + 1
         end
-    end
-
-
-    if player.collider:enter("Bullet") or player.collider:enter("Boss") then
-        local collision_data = player.collider:getEnterCollisionData("Bullet")
-        player.alive = false
     end
 
     -- move player
@@ -310,6 +322,17 @@ function love.update(dt)
             local moveSpeed = boss.speed  -- Use the boss's speed for movement
             bdx = direction_x * moveSpeed
             bdy = direction_y * moveSpeed
+
+            -- spawn a sheep randomly every 5 seconds
+            countSheep = countSheep + 1
+            if countSheep % 100 == 0 then
+                local offsetX = math.random(-spread, spread) -- Randomize x position
+                local offsetY = math.random(-spread, spread) -- Randomize y position
+                local sheep = Sheep:new(bx + offsetX, by + offsetY)
+                if sheep then
+                    table.insert(SheepList, sheep)
+                end
+            end
         end
     
         if countdown > 0 then
@@ -336,7 +359,7 @@ function love.update(dt)
         -- Update boss bullet positions (if any)
         timer = timer + 1
         if timer % 200 == 0 then
-            boss.speed = boss.speed + 100
+            boss.speed = boss.speed + 50
         end
     end
 
@@ -355,60 +378,88 @@ function love.update(dt)
 end
 
 function love.draw()
-    if scene1 then
-        cam:attach()
-            -- draw background
-            gameMap:drawLayer(gameMap.layers["Tile Layer 4"])
-            gameMap:drawLayer(gameMap.layers["Tile Layer 1"])
-            gameMap:drawLayer(gameMap.layers["Tile Layer 2"])
-            gameMap:drawLayer(gameMap.layers["Tile Layer 3"])
-            -- draw player animation
-            player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
-            npc.animations["idle"]:draw(npc.spriteSheet, npc.x - 48, npc.y - 48, 0, 0.7)
-            -- draw table of sheep
-            for _, sheep in ipairs(SheepList) do
-                sheep:draw()
-            end
-
-            if player.sheepCollected >= 50 then
-                -- add static shader
-                if player.sheepCollected >= 60 then
-                    scene2 = true
-                    scene1 = false
+    if player.alive then
+        if scene1 then
+            cam:attach()
+                -- draw background
+                gameMap:drawLayer(gameMap.layers["Tile Layer 4"])
+                gameMap:drawLayer(gameMap.layers["Tile Layer 1"])
+                gameMap:drawLayer(gameMap.layers["Tile Layer 2"])
+                gameMap:drawLayer(gameMap.layers["Tile Layer 3"])
+                -- draw player animation
+                player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
+                npc.animations["idle"]:draw(npc.spriteSheet, npc.x - 48, npc.y - 48, 0, 0.7)
+                -- draw table of sheep
+                for _, sheep in ipairs(SheepList) do
+                    sheep:draw()
                 end
-            end
-        cam:detach()
-    end
-    if scene2 then
-        -- clear screen
-        love.graphics.clear(0, 0, 0, 1)
-        player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
-        -- teleport player to new scene
-        if tele then
-            player.collider:setPosition(400, 200)
-            tele = false
+
+                if player.sheepCollected >= 20 then
+                    -- add static shader
+                    if player.sheepCollected >= 30 then
+                        scene2 = true
+                        scene1 = false
+                        SheepList = {} -- reset sheep list
+                    end
+                end
+            cam:detach()
         end
-        -- bullets:draw()
-        boss.draw()
-        --  draw world (see colliders)
-        world:draw()
+        if scene2 then
+            if player.sheepCollected < 40 then
+                -- clear screen
+                love.graphics.clear(0, 0, 0, 1)
+                player.anim:draw(player.spriteSheet, player.x - 24, player.y - 24)
+                -- teleport player to new scene
+                if tele then
+                    player.collider:setPosition(400, 200)
+                    tele = false
+                end
+                -- bullets:draw()
+                boss.draw()
+
+                for _, sheep in ipairs(SheepList) do
+                    sheep:draw()
+                end
+
+                --  draw world (see colliders)
+                world:draw()
+            else 
+                love.graphics.clear(0, 0, 0, 1)
+                love.graphics.setFont(love.graphics.newFont(24))
+                love.graphics.print("You win!", 400, 200)
+            end
+            
+        end
+
+        for i, _ in ipairs(player.heath) do
+            love.graphics.draw(player.heathSprite, 40 * i, 10, 0, 0.5)
+        end
+        if player.captureSheep then
+            love.graphics.setFont(love.graphics.newFont(24))
+            love.graphics.print("Sheep Collected: " .. player.sheepCollected .. " / 40", 400, 15)
+        end
+
+        -- update collider position
+        player.x = player.collider:getX()
+        player.y = player.collider:getY()
+
+        boss.x = boss.collider:getX()
+        boss.y = boss.collider:getY()
         
+        if myDialogue.isActive then
+            myDialogue:draw()
+        end
+
+        if bossIntro.isActive then
+            bossIntro:draw()
+        end 
     end
 
-    -- update collider position
-    player.x = player.collider:getX()
-    player.y = player.collider:getY()
-
-    boss.x = boss.collider:getX()
-    boss.y = boss.collider:getY()
-    
-    if myDialogue.isActive then
-        myDialogue:draw()
+    if not player.alive then
+        love.graphics.clear(0, 0, 0, 1)
+        love.graphics.setFont(love.graphics.newFont(24))
+        love.graphics.print("You died!", 400, 200)
     end
-
-    if bossIntro.isActive then
-        bossIntro:draw()
-    end 
 end
 
 function love.keypressed(key)

@@ -5,12 +5,12 @@
 @Character Assets/characters/npc.char
 
 [start]
-Hob(Happy): {shake:1}After a long long journey{/shake} 
-Hob(Happy): {shake:1}You've final made it to the final boss of this world{/shake}
+Hob(Happy): After a long long journey
+Hob(Happy): You've final made it to the final boss of this world
 Hob: ...
 -> What about my sword? [target:end_demo]
 -> WTF  [target:end_demo]
 
 [end_demo]
-Hob(Happy): {shake:1}Good Luck!{/shake}
+Hob(Happy): {wave:1}Good Luck!{/wave}
 Chad: WTF (end)
