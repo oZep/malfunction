@@ -13,4 +13,4 @@ Hob: ...
 
 [end_demo]
 Hob(Happy): {wave:1}Good Luck!{/wave}
-Chad: WTF (end)
+Chad: {color:ffffff}WTF{/color} (end)

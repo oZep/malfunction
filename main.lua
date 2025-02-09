@@ -9,6 +9,8 @@ local isMovingTowardPlayer = false
 local direction_x, direction_y 
 local spread = 300
 local invisframe = 0
+local restart = false
+local colliderIsHere = true
 
 Sheep = {}
 Sheep.__index = Sheep
@@ -227,8 +229,6 @@ function love.update(dt)
     shouldBeDead = #player.heath == 0
     player.alive = not shouldBeDead
 
-    print(player.alive)
-
     if player.collider:enter("Boss") and invisframe <= 0 then
         invisframe = 100
         if player.alive then
@@ -422,13 +422,20 @@ function love.draw()
                 end
 
                 --  draw world (see colliders)
-                world:draw()
+                -- world:draw()
             else 
-                love.graphics.clear(0, 0, 0, 1)
-                love.graphics.setFont(love.graphics.newFont(24))
-                love.graphics.print("You win!", 400, 200)
+                scene2 = false
             end
             
+        end
+
+        gameOver = not (scene1 or scene2)
+        if gameOver then
+            love.graphics.clear(0, 0, 0, 1)
+            love.graphics.setFont(love.graphics.newFont(24))
+            love.graphics.print("You win!", 300, 200)
+            love.graphics.print("Sheep Collected: " .. player.sheepCollected, 400, 300)
+            love.graphics.print("Go touch some Grass :) ", 400, 400)
         end
 
         for i, _ in ipairs(player.heath) do
@@ -436,12 +443,15 @@ function love.draw()
         end
         if player.captureSheep then
             love.graphics.setFont(love.graphics.newFont(24))
-            love.graphics.print("Sheep Collected: " .. player.sheepCollected .. " / 40", 400, 15)
+            love.graphics.print("Sheep Collected: " .. player.sheepCollected .. " / 40", 300, 15)
         end
 
         -- update collider position
-        player.x = player.collider:getX()
-        player.y = player.collider:getY()
+        colliderIsHere = not restart
+        if colliderIsHere then
+            player.x = player.collider:getX()
+            player.y = player.collider:getY()
+        end
 
         boss.x = boss.collider:getX()
         boss.y = boss.collider:getY()
@@ -459,6 +469,9 @@ function love.draw()
         love.graphics.clear(0, 0, 0, 1)
         love.graphics.setFont(love.graphics.newFont(24))
         love.graphics.print("You died!", 400, 200)
+        love.graphics.print("Sheep Collected: " .. player.sheepCollected, 400, 300)
+        love.graphics.print("Press R to restart", 400, 400)
+        restart = true
     end
 end
 
@@ -468,5 +481,14 @@ function love.keypressed(key)
     end
     if bossIntro then
         bossIntro:keypressed(key) -- Advance dialogue
+    end
+
+    if restart then
+        if key == "r" then
+            player.heath = {1, 2, 3}
+            player.alive = true
+            player.sheepCollected = 30
+            restart = false
+        end
     end
 end
