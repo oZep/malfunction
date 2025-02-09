@@ -99,8 +99,6 @@ function love.load()
 
     gameMap = sti("Assets/maps/testmap.lua")
 
-    secondRound = sti("Assets/maps/secondRound.lua")
-
     -- Create a new Canvas to draw to
     canvas = love.graphics.newCanvas(1410, 2230)
 
