@@ -1,6 +1,4 @@
 # malfunction
-fuck this theme
-
 
 Joey Issa (oZep)
 
