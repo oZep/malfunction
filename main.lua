@@ -62,6 +62,35 @@ function love.load()
     camera = require "camera" -- a camera library for love2d
     cam = camera()
 
+    sounds = {}
+    sounds.sheep = love.audio.newSource("sound/sheep.mp3", "static")
+    sounds.sheep:setVolume(0.5)
+    sounds.sheep:setLooping(false)
+    sounds.sheep:setPitch(1.5)
+
+    sounds.hurt = love.audio.newSource("sound/hurt.mp3", "static")
+    sounds.hurt:setVolume(0.7)
+    sounds.hurt:setLooping(false)
+
+    sounds.boss = love.audio.newSource("sound/boss.mp3", "stream")
+    sounds.boss:setVolume(0.4)
+    sounds.boss:setLooping(true)
+    sounds.boss:setPitch(1.5)
+
+    sounds.win = love.audio.newSource("sound/win.mp3", "static")
+    sounds.win:setVolume(0.5)
+    sounds.win:setLooping(true)
+
+
+    sounds.start = love.audio.newSource("sound/start.mp3", "static")
+    sounds.start:setVolume(0.5)
+    sounds.start:setLooping(true)
+
+    love.audio.stop()
+
+    sounds.start:play()
+
+
     scene1 = true
     scene2 = false
     talk = true
@@ -232,6 +261,7 @@ function love.update(dt)
     if player.collider:enter("Boss") and invisframe <= 0 then
         invisframe = 100
         if player.alive then
+            sounds.hurt:play()
             table.remove(player.heath)
         end
     end
@@ -240,6 +270,8 @@ function love.update(dt)
 
     if player.sheepCollected >= 30 and talk then
         bossIntro.isActive = true
+        sounds.start:stop()
+        sounds.boss:play()
         talk = false
     end
 
@@ -247,6 +279,7 @@ function love.update(dt)
         if player.collider:enter("Sheep") then
             local collision_data = player.collider:getEnterCollisionData("Sheep")
             local sheep_collider = collision_data.collider
+            sounds.sheep:play()
             -- search through sheepList to find the sheep object and remove it
             for i, sheep in ipairs(SheepList) do
                 if sheep.collider == sheep_collider then
@@ -436,6 +469,8 @@ function love.draw()
             love.graphics.print("You win!", 300, 200)
             love.graphics.print("Sheep Collected: " .. player.sheepCollected, 400, 300)
             love.graphics.print("Go touch some Grass :) ", 400, 400)
+            sounds.boss:stop()
+            sounds.win:play()
         end
 
         for i, _ in ipairs(player.heath) do
